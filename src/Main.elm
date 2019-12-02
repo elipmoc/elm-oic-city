@@ -1,8 +1,12 @@
 module Main exposing (Msg(..), init, main, subscriptions, update, view)
 
 import Browser
-import Html exposing (Html, div, pre, text)
+import Browser.Navigation as Nav
+import Html exposing (Html, a, b, div, li, pre, text, ul)
+import Html.Attributes exposing (href)
 import Http
+import Router exposing (routeView)
+import Url
 
 
 
@@ -10,11 +14,13 @@ import Http
 
 
 main =
-    Browser.document
+    Browser.application
         { init = init
         , update = update
         , subscriptions = subscriptions
         , view = view
+        , onUrlChange = UrlChanged
+        , onUrlRequest = LinkClicked
         }
 
 
@@ -23,14 +29,14 @@ main =
 
 
 type alias Model =
-    { counter : Int }
+    { key : Nav.Key
+    , url : Url.Url
+    }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( { counter = 0 }
-    , Cmd.none
-    )
+init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+    ( Model key url, Cmd.none )
 
 
 
@@ -38,12 +44,25 @@ init _ =
 
 
 type Msg
-    = None
+    = LinkClicked Browser.UrlRequest
+    | UrlChanged Url.Url
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        LinkClicked urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model, Nav.pushUrl model.key (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Nav.load href )
+
+        UrlChanged url ->
+            ( { model | url = url }
+            , Cmd.none
+            )
 
 
 
@@ -51,7 +70,7 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -61,4 +80,19 @@ subscriptions model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "counter", body = [ div [] [ text (String.fromInt model.counter) ] ] }
+    { title = "URL Interceptor"
+    , body =
+        [ text "The current URL is: "
+        , b [] [ text (Url.toString model.url) ]
+        , ul []
+            [ viewLink "/home"
+            , viewLink "/profile"
+            ]
+        , routeView model.url
+        ]
+    }
+
+
+viewLink : String -> Html msg
+viewLink path =
+    li [] [ a [ href path ] [ text path ] ]

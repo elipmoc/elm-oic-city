@@ -1,0 +1,1 @@
+type HomePage={model:Model,view}
